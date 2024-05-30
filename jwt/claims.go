@@ -1,7 +1,7 @@
 package jwt
 
 import (
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // Claims 表示当前用户的访问凭证声明，标准字段及用途如下
