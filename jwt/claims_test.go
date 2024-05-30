@@ -7,7 +7,7 @@ import (
 
 	ej "github.com/keepitlight/kratos/jwt"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func TestClaims(t *testing.T) {
