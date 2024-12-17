@@ -5,14 +5,13 @@ import (
 	"testing"
 	"time"
 
-	ej "github.com/keepitlight/kratos/jwt"
-
 	"github.com/golang-jwt/jwt/v5"
+	j1 "github.com/keepitlight/kratos/jwt"
 )
 
 func TestClaims(t *testing.T) {
 	secret := "secret" // 密钥
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &ej.Claims{
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &j1.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 			ID:        "access-token-guid", // 随机且唯一，防止重放
@@ -22,11 +21,11 @@ func TestClaims(t *testing.T) {
 	})
 	if s, e := token.SignedString([]byte(secret)); e != nil {
 		t.Error("SignedString failed", e)
-	} else if c, e := jwt.ParseWithClaims(s, &ej.Claims{}, func(token *jwt.Token) (interface{}, error) {
+	} else if c, e := jwt.ParseWithClaims(s, &j1.Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
 	}); e != nil {
 		t.Error("ParseWithClaims failed", e)
-	} else if x, f := c.Claims.(*ej.Claims); !f {
+	} else if x, f := c.Claims.(*j1.Claims); !f {
 		t.Error("Claims not set")
 	} else if slices.Index(x.Tags, "Guest") < 0 {
 		t.Error("Tags not set")
