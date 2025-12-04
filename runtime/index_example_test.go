@@ -30,5 +30,5 @@ func ExampleStart() {
 	a, r, b, c, _ := runtime.State()
 	fmt.Println(a, r, b, c)
 	// output:
-	// nil nil build commit
+	// <nil> <nil> build commit
 }
