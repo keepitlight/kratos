@@ -13,7 +13,7 @@ func ExampleNew() {
 	})
 
 	// 3. 组合 T
-	t := New(consoleHandler)
+	t := Join(consoleHandler)
 
 	// 4. 创建 Logger
 	logger := slog.New(t)

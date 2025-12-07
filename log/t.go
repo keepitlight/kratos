@@ -10,13 +10,13 @@ import (
 	"github.com/keepitlight/kratos/runtime"
 )
 
-// T 为自定义的 Handler
+// T 为组合的 slog.Handler
 type T struct {
 	handlers []slog.Handler
 }
 
-// New 是 T 的构造函数
-func New(handlers ...slog.Handler) *T {
+// Join 是 T 的构造函数，用于组合日志处理器
+func Join(handlers ...slog.Handler) *T {
 	return &T{
 		handlers: handlers,
 	}
@@ -169,6 +169,6 @@ func (h *T) Logger(msgKey string) log.Logger {
 	}
 	return &kratosLoggerAdapter{logger: slog.New(h), msgKey: msgKey}
 }
-func (h *T) ToLogger() log.Logger {
+func (h *T) DefaultLogger() log.Logger {
 	return h.Logger(log.DefaultMessageKey)
 }
