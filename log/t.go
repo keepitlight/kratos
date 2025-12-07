@@ -41,7 +41,7 @@ func File(level slog.Level, file string, json, addSource bool) slog.Handler {
 		return nil
 	}
 
-	runtime.Defer(func(logger log.Logger) {
+	runtime.Defer(func() {
 		e := logFile.Close()
 		if e != nil {
 			return
