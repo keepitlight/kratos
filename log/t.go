@@ -173,13 +173,22 @@ func (h *T) DefaultLogger() log.Logger {
 	return h.Logger(log.DefaultMessageKey)
 }
 
-func Default(msgKey string) log.Logger {
+// Cast 将 slog.Logger 转为 kratos Logger
+func Cast(logger *slog.Logger, msgKey string) log.Logger {
 	key := log.DefaultMessageKey
 	if len(msgKey) > 0 {
 		key = msgKey
 	}
 	return &kratosLoggerAdapter{
-		logger: slog.Default(),
+		logger: logger,
 		msgKey: key,
+	}
+}
+
+// Default 将默认的 slog Logger 转为 kratos Logger 返回
+func Default() log.Logger {
+	return &kratosLoggerAdapter{
+		logger: slog.Default(),
+		msgKey: log.DefaultMessageKey,
 	}
 }
