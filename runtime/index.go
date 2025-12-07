@@ -17,42 +17,44 @@ const (
 )
 
 var (
-	runtime = &Runtime{start: sync.Once{}}
+	runtime = &Runtime{once: sync.Once{}, exit: sync.Once{}}
 )
 
 // Runtime 运行时
 type Runtime struct {
-	logger log.Logger // 日志
-
 	readies  []func(log.Logger) error // 准备程序
 	defers   []func(log.Logger)       // 延迟程序
 	routines []Routine                // 伴生协程
 
+	logger    log.Logger         // 日志
 	appInfo   kratos.AppInfo     // 当前的主程序信息，仅在主程序运行后被设置为有效信息
 	registrar registry.Registrar // 当前的注册中心
 	build     string             // 构建时间信息
 	commit    string             // 提交版本信息
 	uptime    time.Time          // 程序开始的运行时间
 
-	start sync.Once
+	once sync.Once
+	exit sync.Once
 }
 
-// Start 启动运行时，⚠️仅运行一次
-func (r *Runtime) Start(
+// start 启动运行时，⚠️仅运行一次
+func (r *Runtime) start(
 	ctx context.Context,
 	logger log.Logger,
 	appInfo kratos.AppInfo,
 	registrar registry.Registrar,
 	build, commit string,
-	uptime time.Time) (msg chan<- error, err error, ok bool) {
-	r.start.Do(func() {
-		msg = make(chan<- error)
+	uptime time.Time) (msg <-chan error, err error, ok bool) {
+
+	r.once.Do(func() {
+		// msg = make(chan error)
 		r.logger = logger
 		r.appInfo = appInfo
 		r.registrar = registrar
 		r.build = build
 		r.commit = commit
 		r.uptime = uptime
+		// 预加载的函数
 		for _, ready := range r.readies {
 			err = ready(logger)
 			if err != nil {
@@ -65,28 +67,32 @@ func (r *Runtime) Start(
 	return
 }
 
-func (r *Runtime) State() (
-	appInfo kratos.AppInfo,
-	registrar registry.Registrar,
-	build, commit string,
-	uptime time.Time,
-) {
-	return r.appInfo, r.registrar, r.build, r.commit, r.uptime
+func (r *Runtime) State() (build, commit string, uptime time.Time) {
+	return r.build, r.commit, r.uptime
+}
+
+func (r *Runtime) AppInfo() kratos.AppInfo {
+	return r.appInfo
+}
+
+func (r *Runtime) Registrar() registry.Registrar {
+	return r.registrar
 }
 
 // Preload 指定在主程序启动时执行的函数，此方法要在 init 函数中调用，否则可能会被忽略
-func (r *Runtime) Preload(f func(logger log.Logger) error) {
+func (r *Runtime) preload(f func(logger log.Logger) error) {
 	r.readies = append(r.readies, f)
 }
 
-// Defer 指定在主程序退出时执行的函数
-func (r *Runtime) Defer(f func(logger log.Logger)) {
+// Defer 指定在主程序退出时执行的函数，全局延迟函数
+func (r *Runtime) deferIt(f func(logger log.Logger)) {
 	r.defers = append(r.defers, f)
 }
 
 // Co 增加伴生协程，以在主协程启动时执行，伴生协程退出或异常不影响主协程，
-// 但主协程退出或异常，伴生协程收到通知要主动退出，注意，在 init 中调用，否则会被忽略
-func (r *Runtime) Co(routines ...Routine) {
+// 但主协程退出或异常，伴生协程收到上下文退出通知要主动退出，注意，在 init 中调用，
+// 否则会被忽略
+func (r *Runtime) co(routines ...Routine) {
 	routines = slices.DeleteFunc(routines, func(r Routine) bool { return r == nil })
 	r.routines = append(r.routines, routines...)
 }
@@ -94,7 +100,7 @@ func (r *Runtime) Co(routines ...Routine) {
 // run 执行所有注册的伴生协程，与主协程协同运行，伴生协程退出或异常不影响主协程，
 // 返回带缓冲的消息通道，返回通道关闭表示所有伴生协程正常退出。
 // 但主协程退出或异常，伴生协程收到通知要主动退出
-func (r *Runtime) run(ctx context.Context) chan<- error {
+func (r *Runtime) run(ctx context.Context) <-chan error {
 	var c = make(chan error, len(r.routines))
 	go func() {
 		var wg sync.WaitGroup
@@ -121,21 +127,30 @@ func (r *Runtime) run(ctx context.Context) chan<- error {
 	return c
 }
 
+func (r *Runtime) dispose() {
+	r.exit.Do(func() {
+		for _, def := range r.defers {
+			def(r.logger)
+		}
+	})
+}
+
 // Co 增加伴生协程，以在主协程启动时执行，伴生协程退出或异常不影响主协程，
 // 但主协程退出或异常，伴生协程收到通知要主动退出，注意，在 init 中调用，否则会被忽略
 func Co(routines ...Routine) {
-	runtime.Co(routines...)
+	runtime.co(routines...)
 }
 
 // Start 启动运行时，⚠️仅运行一次
+// 如需关闭伴生协程，传递可以取消的上下文，通过上下文关闭伴生协程
 func Start(
 	ctx context.Context,
 	logger log.Logger,
 	appInfo kratos.AppInfo,
 	registrar registry.Registrar,
 	build, commit string,
-	uptime time.Time) (channel chan<- error, err error, ok bool) {
-	return runtime.Start(ctx, logger, appInfo, registrar, build, commit, uptime)
+	uptime time.Time) (channel <-chan error, err error, ok bool) {
+	return runtime.start(ctx, logger, appInfo, registrar, build, commit, uptime)
 }
 
 func State() (
@@ -149,12 +164,12 @@ func State() (
 
 // Preload 指定在主程序启动时执行的函数，此方法要在 init 函数中调用，否则会被忽略
 func Preload(f func(logger log.Logger) error) {
-	runtime.Preload(f)
+	runtime.preload(f)
 }
 
 // Defer 指定在主程序退出时执行的函数
 func Defer(f func(logger log.Logger)) {
-	runtime.Defer(f)
+	runtime.deferIt(f)
 }
 
 func Current() (current *Runtime) {
@@ -164,4 +179,8 @@ func Current() (current *Runtime) {
 // Logger 获取当前的日志记录器。
 func Logger() (logger log.Logger) {
 	return runtime.logger
+}
+
+func Dispose() {
+	runtime.dispose()
 }
