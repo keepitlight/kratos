@@ -12,15 +12,16 @@ import (
 
 const messageKey = "message"
 
+// Zap 日志实现 Kratos 日志记录器接口
 type Zap struct {
 	log  *zap.Logger
 	Sync func() error
 }
 
-func (l *Zap) Log(level log.Level, kv ...interface{}) {
+func (l *Zap) Log(level log.Level, kv ...interface{}) error {
 	if len(kv) == 0 || len(kv)%2 != 0 {
 		l.log.Warn("key value must appear in pairs: ", zap.Any("kv", kv))
-		return
+		return nil
 	}
 
 	var data []zap.Field
@@ -29,23 +30,7 @@ func (l *Zap) Log(level log.Level, kv ...interface{}) {
 	}
 
 	l.log.Log(zapcore.Level(level), "", data...)
-	return
-}
-
-func (l *Zap) Info(kv ...interface{}) {
-	l.Log(log.LevelInfo, kv...)
-}
-func (l *Zap) Warn(kv ...interface{}) {
-	l.Log(log.LevelWarn, kv...)
-}
-func (l *Zap) Error(kv ...interface{}) {
-	l.Log(log.LevelError, kv...)
-}
-func (l *Zap) Fatal(kv ...interface{}) {
-	l.Log(log.LevelFatal, kv...)
-}
-func (l *Zap) Debug(kv ...interface{}) {
-	l.Log(log.LevelDebug, kv...)
+	return nil
 }
 
 // NewZap 创建 Zap 日志工具
@@ -64,7 +49,7 @@ func NewZap(name, file string, level zapcore.Level, maxAge, maxSize, maxBackups 
 	}
 
 	core := zapcore.NewCore(getEncoder(), ws, level)
-	opt := zap.Fields(zap.String("App", name)) // 服务名
+	opt := zap.Fields(zap.String("app", name)) // 服务名
 	return &Zap{log: zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2), opt), Sync: core.Sync}
 }
 
