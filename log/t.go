@@ -172,3 +172,14 @@ func (h *T) Logger(msgKey string) log.Logger {
 func (h *T) DefaultLogger() log.Logger {
 	return h.Logger(log.DefaultMessageKey)
 }
+
+func Default(msgKey string) log.Logger {
+	key := log.DefaultMessageKey
+	if len(msgKey) > 0 {
+		key = msgKey
+	}
+	return &kratosLoggerAdapter{
+		logger: slog.Default(),
+		msgKey: key,
+	}
+}
