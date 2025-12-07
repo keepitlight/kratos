@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 )
 
@@ -22,11 +21,10 @@ var (
 
 // Runtime 运行时
 type Runtime struct {
-	readies  []func(log.Logger) error // 准备程序
-	defers   []func(log.Logger)       // 延迟程序
-	routines []Routine                // 伴生协程
+	readies  []func() error // 准备程序
+	defers   []func()       // 延迟程序
+	routines []Routine      // 伴生协程
 
-	logger    log.Logger         // 日志
 	appInfo   kratos.AppInfo     // 当前的主程序信息，仅在主程序运行后被设置为有效信息
 	registrar registry.Registrar // 当前的注册中心
 	build     string             // 构建时间信息
@@ -40,7 +38,6 @@ type Runtime struct {
 // start 启动运行时，⚠️仅运行一次
 func (r *Runtime) start(
 	ctx context.Context,
-	logger log.Logger,
 	appInfo kratos.AppInfo,
 	registrar registry.Registrar,
 	build, commit string,
@@ -48,7 +45,6 @@ func (r *Runtime) start(
 
 	r.once.Do(func() {
 		// msg = make(chan error)
-		r.logger = logger
 		r.appInfo = appInfo
 		r.registrar = registrar
 		r.build = build
@@ -56,7 +52,7 @@ func (r *Runtime) start(
 		r.uptime = uptime
 		// 预加载的函数
 		for _, ready := range r.readies {
-			err = ready(logger)
+			err = ready()
 			if err != nil {
 				return
 			}
@@ -80,12 +76,12 @@ func (r *Runtime) Registrar() registry.Registrar {
 }
 
 // Preload 指定在主程序启动时执行的函数，此方法要在 init 函数中调用，否则可能会被忽略
-func (r *Runtime) preload(f func(logger log.Logger) error) {
+func (r *Runtime) preload(f func() error) {
 	r.readies = append(r.readies, f)
 }
 
 // Defer 指定在主程序退出时执行的函数，全局延迟函数
-func (r *Runtime) deferIt(f func(logger log.Logger)) {
+func (r *Runtime) deferIt(f func()) {
 	r.defers = append(r.defers, f)
 }
 
@@ -116,7 +112,7 @@ func (r *Runtime) run(ctx context.Context) <-chan error {
 					}
 				}()
 
-				if e := routine(ctx, r.logger); e != nil {
+				if e := routine(ctx); e != nil {
 					c <- e
 				}
 			}(ro)
@@ -130,7 +126,7 @@ func (r *Runtime) run(ctx context.Context) <-chan error {
 func (r *Runtime) dispose() {
 	r.exit.Do(func() {
 		for _, def := range r.defers {
-			def(r.logger)
+			def()
 		}
 	})
 }
@@ -145,12 +141,11 @@ func Co(routines ...Routine) {
 // 如需关闭伴生协程，传递可以取消的上下文，通过上下文关闭伴生协程
 func Start(
 	ctx context.Context,
-	logger log.Logger,
 	appInfo kratos.AppInfo,
 	registrar registry.Registrar,
 	build, commit string,
 	uptime time.Time) (channel <-chan error, err error, ok bool) {
-	return runtime.start(ctx, logger, appInfo, registrar, build, commit, uptime)
+	return runtime.start(ctx, appInfo, registrar, build, commit, uptime)
 }
 
 func State() (
@@ -163,22 +158,17 @@ func State() (
 }
 
 // Preload 指定在主程序启动时执行的函数，此方法要在 init 函数中调用，否则会被忽略
-func Preload(f func(logger log.Logger) error) {
+func Preload(f func() error) {
 	runtime.preload(f)
 }
 
 // Defer 指定在主程序退出时执行的函数
-func Defer(f func(logger log.Logger)) {
+func Defer(f func()) {
 	runtime.deferIt(f)
 }
 
 func Current() (current *Runtime) {
 	return runtime
-}
-
-// Logger 获取当前的日志记录器。
-func Logger() (logger log.Logger) {
-	return runtime.logger
 }
 
 func Dispose() {
