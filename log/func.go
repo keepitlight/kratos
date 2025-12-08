@@ -1,6 +1,8 @@
 package log
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 )
@@ -256,4 +258,24 @@ func Compose(addons ...func(groups []string, a slog.Attr) (r slog.Attr, ok bool)
 		}
 		return a
 	}
+}
+
+// DebugF 用于打印调试日志消息，仅输出 msg，无其它 slog.Attr。
+func DebugF(format string, args ...interface{}) {
+	slog.Log(context.Background(), slog.LevelDebug, fmt.Sprintf(format, args...))
+}
+
+// InfoF 用于打印信息日志消息，仅输出 msg，无其它 slog.Attr。
+func InfoF(format string, args ...interface{}) {
+	slog.Log(context.Background(), slog.LevelInfo, fmt.Sprintf(format, args...))
+}
+
+// WarnF 用于打印警告日志消息，仅输出 msg，无其它 slog.Attr。
+func WarnF(format string, args ...interface{}) {
+	slog.Log(context.Background(), slog.LevelWarn, fmt.Sprintf(format, args...))
+}
+
+// ErrorF 用于打印错误日志消息，仅输出 msg，无其它 slog.Attr。
+func ErrorF(format string, args ...interface{}) {
+	slog.Log(context.Background(), slog.LevelError, fmt.Sprintf(format, args...))
 }
