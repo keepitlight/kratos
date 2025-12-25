@@ -97,7 +97,7 @@ func (r *Runtime) co(routines ...Routine) {
 // 返回带缓冲的消息通道，返回通道关闭表示所有伴生协程正常退出。
 // 但主协程退出或异常，伴生协程收到通知要主动退出
 func (r *Runtime) run(ctx context.Context) <-chan error {
-	var c = make(chan error, len(r.routines))
+	var c = make(chan error)
 	go func() {
 		var wg sync.WaitGroup
 		wg.Add(len(r.routines))
