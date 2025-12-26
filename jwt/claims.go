@@ -17,3 +17,8 @@ type Claims struct {
 	jwt.RegisteredClaims
 	Tags []string `json:"tag,omitempty"` // 标签，由签署方和应用方协商实际用途
 }
+
+func (c *Claims) AddTag(tags ...string) *Claims {
+	c.Tags = append(c.Tags, tags...)
+	return c
+}
