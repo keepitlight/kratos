@@ -7,7 +7,7 @@ type Parser struct {
 	signingMethod string // 签署方法/算法
 }
 
-func NewParser(secretKey []byte, signingMethod string) *Parser {
+func NewParser(signingMethod string, secretKey []byte) *Parser {
 	return &Parser{
 		secretKey:     secretKey,
 		signingMethod: signingMethod,
@@ -15,15 +15,16 @@ func NewParser(secretKey []byte, signingMethod string) *Parser {
 }
 
 // Parse 解析 JWT，返回 Claims
-func (p *Parser) Parse(jwt string) (claims *Claims, ok bool) {
+func (p *Parser) Parse(jwt string) (claims *Claims, err error) {
 	token, err := j5.ParseWithClaims(jwt, &Claims{}, func(token *j5.Token) (interface{}, error) {
 		return p.secretKey, nil
 	})
 	if err != nil {
 		return
 	}
+	var ok bool
 	if claims, ok = token.Claims.(*Claims); ok && token.Valid {
 		return
 	}
-	return nil, false
+	return nil, j5.ErrSignatureInvalid
 }
