@@ -7,7 +7,7 @@ type Parser struct {
 	signingMethod string // 签署方法/算法
 }
 
-func NewParser(secretKey []byte, signingMethod string) *Parser {
+func NewParser(signingMethod string, secretKey []byte) *Parser {
 	return &Parser{
 		secretKey:     secretKey,
 		signingMethod: signingMethod,
