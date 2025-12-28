@@ -85,3 +85,8 @@ func (p *Parser) Lookup(ctx context.Context) (claims *Claims, err error) {
 	}
 	return nil, nil
 }
+
+func (p *Parser) SetName(name string) *Parser {
+	p.Name = name
+	return p
+}
