@@ -15,11 +15,27 @@ import (
 //   - ExpiresAt(exp) int     为过期时间，不能早于签署时间
 type Claims struct {
 	jwt.RegisteredClaims
-	Tags    []string `json:"tag,omitempty"` // 标签，由签署方和应用方协商实际用途
-	Payload any      `json:"ext,omitempty"` // 扩展，自定义字段
+	Tags  []string `json:"tag,omitempty"` // 标签，由签署方和应用方协商实际用途
+	Extra any      `json:"ext,omitempty"` // 扩展，自定义字段
 }
 
 func (c *Claims) AddTag(tags ...string) *Claims {
 	c.Tags = append(c.Tags, tags...)
 	return c
+}
+
+func (c *Claims) SetTag(tags ...string) *Claims {
+	c.Tags = tags
+	return c
+}
+
+func (c *Claims) SetExtra(extra any) *Claims {
+	c.Extra = extra
+	return c
+}
+func (c *Claims) GetTags() []string {
+	return c.Tags
+}
+func (c *Claims) GetExtra() any {
+	return c.Extra
 }
