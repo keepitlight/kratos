@@ -10,5 +10,5 @@ const (
 // Token 返回的 Token 信息
 type Token struct {
 	Value string        `json:"value"` // 令牌值
-	Ttl   time.Duration `json:"ttl"`   // 持续时间，单位秒
+	Ttl   time.Duration `json:"ttl"`   // 持续时间
 }
