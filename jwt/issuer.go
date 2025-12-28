@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	DefaultIssuerName       = "AuthManager"         // 默认签发者名称
-	DefaultSigningMethod    = j5.SigningMethodHS256 // 默认的对称加密签署方法/算法
-	DefaultPKESigningMethod = j5.SigningMethodES256 // 默认的非对称加密签署方法/算法
+	DefaultIssuerName      = "AuthManager"         // 默认签发者名称
+	DefaultSigningMethod   = j5.SigningMethodHS256 // 默认的对称加密签署方法/算法
+	DefaultPKSigningMethod = j5.SigningMethodES256 // 默认的非对称加密签署方法/算法
 )
 
 // Issuer defines a JWT issuer.
@@ -24,6 +24,28 @@ type Issuer struct {
 	signingKey    []byte           // 签署密钥，对于非对称加密的算法，这个字段为私钥
 	signingMethod j5.SigningMethod // 签署方法/算法
 	ttl           time.Duration    // 令牌有效期
+}
+
+// New creates a JWT issuer and parser using symmetric encryption algorithms,
+// parameters signingMethod is the signing method/algorithm,
+// parameters signingKey is the signing key, parameters ttl is the time to live of the token
+//
+// 创建一个使用对称加密算法的 JWT 签发者和解析器，参数 signingMethod 签署方法/算法，参数 signingKey 签署密钥，
+// 参数 ttl 是令牌有效期
+func New(signingMethod j5.SigningMethod, signingKey []byte, ttl time.Duration) (*Issuer, *Parser) {
+	return NewIssuer(signingMethod, signingKey, ttl),
+		NewParser(signingMethod, signingKey)
+}
+
+// PK creates a JWT issuer and parser using asymmetric encryption algorithms,
+// parameters signingMethod is the signing method/algorithm,
+// parameters privateKey is the private key, parameters publicKey is the public key, parameters ttl is the time to live of the token
+//
+// 创建一个使用非对称加密算法的 JWT 签发者和解析器，参数 signingMethod 签署方法/算法，参数 privateKey 私钥（仅签发者，即认证服务持有），
+// 另有 publicKey 公钥分发给所有消费服务，参数 ttl 令牌有效期
+func PK(signingMethod j5.SigningMethod, privateKey []byte, publicKey []byte, ttl time.Duration) (*Issuer, *Parser) {
+	return NewIssuer(signingMethod, privateKey, ttl),
+		NewParser(signingMethod, publicKey)
 }
 
 // NewIssuer 创建一个 JWT 签发者，参数 signingMethod 签署方法/算法，参数 signingKey 签署密钥，
@@ -46,12 +68,12 @@ func DefaultIssuer(secretKey []byte, ttl time.Duration) *Issuer {
 	return i
 }
 
-// DefaultPKEIssuer creates a default JWT issuer, parameters privateKey is the private key, parameters ttl is the time to live of the token
+// DefaultPKIssuer creates a default JWT issuer, parameters privateKey is the private key, parameters ttl is the time to live of the token
 //
 // 创建一个使用非对称加密算法 ES256 的访问令牌签发者，参数 privateKey 私钥（仅签发者，即认证服务持有），
 // 另有 publicKey 公钥分发给所有消费服务，参数 ttl 令牌有效期
-func DefaultPKEIssuer(privateKey []byte, ttl time.Duration) *Issuer {
-	i := NewIssuer(DefaultPKESigningMethod, privateKey, ttl)
+func DefaultPKIssuer(privateKey []byte, ttl time.Duration) *Issuer {
+	i := NewIssuer(DefaultPKSigningMethod, privateKey, ttl)
 	i.Name = DefaultIssuerName
 	return i
 }
