@@ -2,12 +2,14 @@ package grpc
 
 import (
 	"context"
+	"strings"
 
 	"github.com/go-kratos/kratos/v2/transport"
 	"google.golang.org/grpc/metadata"
 )
 
 const (
+	BearerPrefix  = "Bearer "
 	Authorization = "Authorization"
 )
 
@@ -16,11 +18,15 @@ func LookupToken(ctx context.Context) (jwt string, ok bool) {
 	if tr, yes := transport.FromServerContext(ctx); yes && tr.Kind() == transport.KindGRPC {
 		if md, yes := metadata.FromIncomingContext(ctx); yes {
 			auth := md.Get(Authorization)
-			if len(auth) <= 7 {
+			if len(auth) == 0 {
+				return
+			}
+			k := auth[0]
+			if len(k) <= 7 || !strings.HasPrefix(k, BearerPrefix) {
 				return
 			}
 			// 获取 token
-			jwt = auth[0][7:]
+			jwt = k[7:]
 			ok = true
 		} else {
 			return
@@ -34,7 +40,7 @@ func LookupToken(ctx context.Context) (jwt string, ok bool) {
 func InjectToken(ctx context.Context, jwt string) context.Context {
 	if tr, yes := transport.FromServerContext(ctx); yes && tr.Kind() == transport.KindGRPC {
 		// 在 metadata 中添加 Authorization header
-		md := metadata.Pairs(Authorization, "Bearer "+jwt)
+		md := metadata.Pairs(Authorization, BearerPrefix+jwt)
 		ctx = metadata.NewOutgoingContext(ctx, md)
 	}
 	return ctx
