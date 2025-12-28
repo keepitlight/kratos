@@ -18,7 +18,7 @@ var (
 // JWT 签发者
 type Issuer struct {
 	Name        string        // 签署人名称
-	Audiences   []string      // 受众列表
+	Audiences   []string      // 受众列表，大小写敏感
 	IdGenerator func() string // ID 生成器
 
 	signingKey    []byte           // 签署密钥，对于非对称加密的算法，这个字段为私钥
@@ -90,12 +90,30 @@ func (i *Issuer) Make(subject string, tags ...string) (claims *Claims) {
 		id = i.IdGenerator()
 	}
 
+	var keys map[string]struct{}
+	var audiences []string
+
+	// 去重
+	for _, a := range i.Audiences {
+		if _, ok := keys[a]; ok {
+			continue
+		}
+		keys[a] = struct{}{}
+		audiences = append(audiences, a)
+	}
+	// 添加签发者名称为受众
+	if i.Name != "" {
+		if _, ok := keys[i.Name]; !ok {
+			audiences = append(audiences, i.Name)
+		}
+	}
+
 	claims = &Claims{
 		RegisteredClaims: j5.RegisteredClaims{
 			Issuer:    i.Name,
 			Subject:   subject,
 			ID:        id,
-			Audience:  i.Audiences,
+			Audience:  audiences,
 			ExpiresAt: j5.NewNumericDate(expiresAt),
 			NotBefore: j5.NewNumericDate(now),
 			IssuedAt:  j5.NewNumericDate(now),
@@ -108,8 +126,7 @@ func (i *Issuer) Make(subject string, tags ...string) (claims *Claims) {
 // Sign to sign a JWT, returns the signed string
 //
 // 签署一个 JWT，返回签名后的字符串
-func (i *Issuer) Sign(subject string, tags ...string) (jwt string, err error) {
-	claims := i.Make(subject, tags...)
+func (i *Issuer) Sign(claims *Claims) (jwt string, err error) {
 	token := j5.NewWithClaims(i.signingMethod, claims)
 	return token.SignedString(i.signingKey)
 }
@@ -117,8 +134,8 @@ func (i *Issuer) Sign(subject string, tags ...string) (jwt string, err error) {
 // Generate to generate a JWT, returns a Token object
 //
 // 生成 JWT，返回 Token 对象
-func (i *Issuer) Generate(subject string, tags ...string) (token *Token, err error) {
-	v, err := i.Sign(subject, tags...)
+func (i *Issuer) Generate(claims *Claims) (token *Token, err error) {
+	v, err := i.Sign(claims)
 	if err != nil {
 		return nil, err
 	}
@@ -126,4 +143,14 @@ func (i *Issuer) Generate(subject string, tags ...string) (token *Token, err err
 		Value: v,
 		Ttl:   i.ttl,
 	}, nil
+}
+
+func (i *Issuer) SetName(name string) *Issuer {
+	i.Name = name
+	return i
+}
+
+func (i *Issuer) AddAudiences(aud ...string) *Issuer {
+	i.Audiences = append(i.Audiences, aud...)
+	return i
 }

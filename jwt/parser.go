@@ -12,6 +12,8 @@ import (
 )
 
 type Parser struct {
+	Name string // 解析器名称
+
 	secretKey     []byte           // 签署密钥，对于非对称加密的算法，这个字段为公钥
 	signingMethod j5.SigningMethod // 签署方法/算法
 }
@@ -32,18 +34,30 @@ func NewParser(signingMethod j5.SigningMethod, secretKey []byte) *Parser {
 //
 // 解析 JWT，返回 Claims
 func (p *Parser) Parse(jwt string) (claims *Claims, err error) {
-	token, err := j5.ParseWithClaims(jwt, &Claims{}, func(token *j5.Token) (interface{}, error) {
-		if strings.Compare(token.Method.Alg(), p.signingMethod.Alg()) != 0 {
-			return nil, j5.ErrSignatureInvalid
-		}
-		return p.secretKey, nil
-	})
+	var opts []j5.ParserOption
+
+	if p.Name != "" {
+		opts = append(opts, j5.WithAudience(p.Name))
+	}
+
+	token, err := j5.ParseWithClaims(
+		jwt,
+		&Claims{},
+		func(token *j5.Token) (interface{}, error) {
+			if strings.Compare(token.Method.Alg(), p.signingMethod.Alg()) != 0 {
+				return nil, j5.ErrSignatureInvalid
+			}
+			return p.secretKey, nil
+		},
+		opts...,
+	)
+
 	if err != nil {
 		return
 	}
 	var ok bool
 	if claims, ok = token.Claims.(*Claims); ok && token.Valid {
-		return
+		return claims, nil
 	}
 	return nil, j5.ErrSignatureInvalid
 }
